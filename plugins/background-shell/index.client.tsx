@@ -1,27 +1,26 @@
 import type { PluginButtonRegistration, PluginClientContext } from "@getpaseo/plugin/client";
 import { moveToBackground, supportsBackgrounding } from "./client/background";
+import { watchForeground } from "./client/foreground";
 
 const title = "Move running shell commands to the background (Ctrl+B)";
 
 export default function contribute(client: PluginClientContext) {
   const pills = new Map<string, PluginButtonRegistration>();
+  // A running turn's timeline watcher, per agent.
+  const watchers = new Map<string, () => void>();
   const lifetime = new AbortController();
 
-  const drop = (agentId: string) => {
+  const hidePill = (agentId: string) => {
     pills.get(agentId)?.remove();
     pills.delete(agentId);
   };
-  // A pill only while a turn runs: that is when a tool call can be waiting.
-  const track = (agent: { id: string; workspaceId?: string | null; provider: string; status: string }) => {
-    const wanted = agent.status === "running" && !!agent.workspaceId && supportsBackgrounding(agent.provider);
-    if (!wanted) return drop(agent.id);
-    if (pills.has(agent.id) || lifetime.signal.aborted || !agent.workspaceId) return;
-    const agentId = agent.id;
+  const showPill = (agentId: string, workspaceId: string) => {
+    if (pills.has(agentId) || lifetime.signal.aborted) return;
     pills.set(
       agentId,
       client.addComposerPill({
         id: "background",
-        workspaceId: agent.workspaceId,
+        workspaceId,
         agentId,
         button: {
           title,
@@ -32,8 +31,25 @@ export default function contribute(client: PluginClientContext) {
       }),
     );
   };
+  const drop = (agentId: string) => {
+    watchers.get(agentId)?.();
+    watchers.delete(agentId);
+    hidePill(agentId);
+  };
+  // The pill shows only while the turn waits on a shell command or a subagent,
+  // which is what there is to move; the timeline says when that starts and ends.
+  const track = (agent: { id: string; workspaceId?: string | null; provider: string; status: string }) => {
+    const { id: agentId, workspaceId } = agent;
+    const wanted = agent.status === "running" && !!workspaceId && supportsBackgrounding(agent.provider);
+    if (!wanted || !workspaceId) return drop(agentId);
+    if (watchers.has(agentId) || lifetime.signal.aborted) return;
+    watchers.set(
+      agentId,
+      watchForeground(client.paseo, agentId, (waiting) => (waiting ? showPill(agentId, workspaceId) : hidePill(agentId))),
+    );
+  };
   const dropAll = () => {
-    for (const id of [...pills.keys()]) drop(id);
+    for (const id of [...watchers.keys()]) drop(id);
   };
 
   // An owned list subscription delivers existing agents, then updates, and a fresh snapshot after a reconnect.

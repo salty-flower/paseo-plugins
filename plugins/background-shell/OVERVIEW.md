@@ -4,7 +4,8 @@ Moves the shell commands an agent's turn is waiting on to the background, like C
 The commands keep running, the waiting tool calls return at once, and the turn goes on;
 the commands then show among the agent's background work, where they can be stopped.
 
-While a Claude or OpenCode agent runs a turn, a Background pill sits above its composer.
+While a Claude or OpenCode agent's turn waits on a shell command or a subagent, a Background pill sits above its composer;
+it goes once nothing is left to move.
 The same action is in the Command Center and behind `/bg`.
 Claude backgrounds its foreground Bash commands and subagents; OpenCode its blocking tools.
 Other providers, Codex among them, have no way to do this yet, so their agents get no pill.
