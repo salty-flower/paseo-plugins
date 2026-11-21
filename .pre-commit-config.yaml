@@ -1,0 +1,38 @@
+# Run with prek (`prek install` once, inside `nix develop`). The biome and
+# typecheck hooks use the repository's node_modules, so run `npm ci` first.
+repos:
+  - repo: "https://github.com/pre-commit/pre-commit-hooks"
+    rev: "v6.0.0"
+    hooks:
+      - id: "end-of-file-fixer"
+        exclude: "^plugins/pad/(client|server|shared|assets)/|^plugins/pad/LICENSE\\.genui$"
+      - id: "trailing-whitespace"
+        exclude: "^plugins/pad/(client|server|shared|assets)/|^plugins/pad/LICENSE\\.genui$"
+  - repo: "local"
+    hooks:
+      - id: "nixfmt"
+        name: "nixfmt"
+        entry: "nixfmt"
+        language: "system"
+        files: "\\.nix$"
+      # biome.json leaves the pad's copy of genui alone.
+      - id: "biome-check"
+        name: "biome check"
+        entry: "node_modules/.bin/biome check --write --error-on-warnings --no-errors-on-unmatched --files-ignore-unknown=true"
+        language: "system"
+        types_or: ["javascript", "ts", "tsx", "json"]
+      - id: "typecheck"
+        name: "typecheck"
+        entry: "node scripts/typecheck.mjs"
+        language: "system"
+        files: "^(plugins/|tsconfig|package)"
+        pass_filenames: false
+      - id: "markdownlint-cli2"
+        name: "markdownlint-cli2"
+        entry: "markdownlint-cli2"
+        language: "system"
+        types: ["markdown"]
+  - repo: "https://github.com/gitleaks/gitleaks"
+    rev: "v8.30.0"
+    hooks:
+      - id: "gitleaks"

@@ -1,0 +1,28 @@
+{
+  "name": "paseo-plugins",
+  "private": true,
+  "description": "Paseo plugins: pad, background-shell, later and gruvbox. Development tooling only; each plugin installs from its own directory.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/salty-flower/paseo-plugins.git"
+  },
+  "type": "module",
+  "scripts": {
+    "typecheck": "node scripts/typecheck.mjs",
+    "check": "biome check --error-on-warnings",
+    "test:daemon-patches": "node scripts/test-daemon-patches.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.9",
+    "@electron/asar": "3.2.4",
+    "@getpaseo/plugin": "0.16.2",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/node": "^24.19.2",
+    "@types/react": "~19.2.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "typescript": "^5.9.3",
+    "zod": "^4.4.3"
+  }
+}

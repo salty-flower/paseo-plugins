@@ -1,0 +1,8 @@
+{
+  "id": "later",
+  "name": "Later",
+  "description": "/later sends a prompt to the agent at a set time, steering a running turn, and keeps pending prompts across daemon restarts.",
+  "requirements": {
+    "paseo": ">=0.16.0-beta.2"
+  }
+}

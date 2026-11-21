@@ -1,0 +1,50 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
+  "files": {
+    "includes": ["**", "!**/package-lock.json", "!flake.lock"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 200,
+    "lineEnding": "lf"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["plugins/pad/client/**", "plugins/pad/server/**", "plugins/pad/shared/**"],
+      "linter": {
+        "enabled": false
+      },
+      "formatter": {
+        "enabled": false
+      },
+      "assist": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": ["plugins/pad/*/pad-*", "plugins/pad/shared/pad.ts"],
+      "linter": {
+        "enabled": true
+      },
+      "formatter": {
+        "enabled": true
+      },
+      "assist": {
+        "enabled": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Typecheck, the pad's genui copy, and the daemon patches against the pinned
+  # Paseo release.
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - run: nix flake check -L
+
+  # The same hooks a local commit runs, over every file.
+  prek:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - run: nix develop --command npm ci --ignore-scripts
+      - run: nix develop --command prek run --all-files --show-diff-on-failure

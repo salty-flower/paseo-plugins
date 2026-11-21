@@ -1,0 +1,8 @@
+{
+  "id": "pad",
+  "name": "Pad",
+  "description": "A board each top-level agent keeps beside its chat, drawn with Generative UI, so you read one place instead of its replies.",
+  "requirements": {
+    "paseo": ">=0.15.0"
+  }
+}

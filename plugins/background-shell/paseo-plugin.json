@@ -1,0 +1,8 @@
+{
+  "id": "background-shell",
+  "name": "Background shell",
+  "description": "Ctrl+B for Paseo: move the shell commands a turn is waiting on to the background, where they keep running and the turn goes on.",
+  "requirements": {
+    "paseo": ">=0.16.0-beta.2"
+  }
+}

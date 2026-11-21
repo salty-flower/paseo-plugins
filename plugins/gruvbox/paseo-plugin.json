@@ -1,0 +1,8 @@
+{
+  "id": "gruvbox",
+  "name": "Gruvbox",
+  "description": "Gruvbox Light, Gruvbox Dark, and Gruvbox System, which follows the device's light or dark appearance.",
+  "requirements": {
+    "paseo": ">=0.10.0"
+  }
+}

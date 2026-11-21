@@ -1,0 +1,8 @@
+// For editors only: scripts/typecheck.mjs checks each plugin's server and
+// client code separately, as the daemon compiles them.
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "types": ["react", "node"] },
+  "include": ["plugins/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}
