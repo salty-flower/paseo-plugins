@@ -31,7 +31,7 @@
       package.json pins @getpaseo/plugin ${
         packageJson.devDependencies."@getpaseo/plugin"
       }, but flake.nix checks against Paseo ${paseo.version}.
-      Bump both together, then regenerate package-lock.json and npmDepsHash.
+      Bump both together, then regenerate pnpm-lock.yaml and the pnpmDeps hash.
     '';
     {
       # Each plugin as the directory Paseo installs, for Nix-managed setups.
@@ -49,6 +49,7 @@
         default = pkgs.mkShellNoCC {
           packages = [
             pkgs.nodejs
+            pkgs.pnpm_12
             pkgs.prek
             pkgs.nixfmt
             pkgs.markdownlint-cli2
@@ -60,27 +61,46 @@
       checks = forAllSystems (
         pkgs:
         let
-          # The repository's npm tree, shared by every check that runs a script.
-          npmCheck =
-            name: nativeBuildInputs: script:
-            pkgs.buildNpmPackage {
+          # Bumped deliberately: a new pnpm major can change the store
+          # layout, and with it the dependency hash below.
+          pnpm = pkgs.pnpm_12;
+          src = lib.fileset.toSource {
+            root = ./.;
+            fileset = lib.fileset.unions [
+              ./package.json
+              ./pnpm-lock.yaml
+              ./tsconfig.base.json
+              ./plugins
+              ./scripts
+              ./daemon-patches
+            ];
+          };
+          # The repository's dev dependencies, shared by every check that runs a
+          # script. Only the manifest and lockfile, so editing a plugin does not refetch.
+          pnpmDeps = pkgs.fetchPnpmDeps {
+            pname = "paseo-plugins";
+            inherit pnpm;
+            src = lib.fileset.toSource {
+              root = ./.;
+              fileset = lib.fileset.unions [
+                ./package.json
+                ./pnpm-lock.yaml
+              ];
+            };
+            fetcherVersion = 5;
+            hash = "sha256-of4IhdN45ltPxct0dbQnnGD9sY+7+ea0brb6G76UPmQ=";
+          };
+          nodeCheck =
+            name: script:
+            pkgs.stdenvNoCC.mkDerivation {
               pname = "paseo-plugins-${name}";
               version = paseo.version;
-              src = lib.fileset.toSource {
-                root = ./.;
-                fileset = lib.fileset.unions [
-                  ./package.json
-                  ./package-lock.json
-                  ./tsconfig.base.json
-                  ./plugins
-                  ./scripts
-                  ./daemon-patches
-                ];
-              };
-              npmDepsHash = "sha256-H90IOOxjjKx/RrQWEqD7Spo+MeNBbLnan5Ou7i0iOVc=";
-              npmFlags = [ "--ignore-scripts" ];
-              dontNpmBuild = true;
-              inherit nativeBuildInputs;
+              inherit src pnpmDeps;
+              nativeBuildInputs = [
+                pkgs.nodejs
+                pnpm
+                pkgs.pnpmConfigHook
+              ];
               buildPhase = ''
                 runHook preBuild
                 ${script}
@@ -100,7 +120,7 @@
           };
         in
         {
-          typecheck = npmCheck "typecheck" [ ] "node scripts/typecheck.mjs";
+          typecheck = nodeCheck "typecheck" "node scripts/typecheck.mjs";
 
           # The pad's copy of genui is genui's own files, unedited, at the
           # commit vendor.json names: pad code goes in pad-* files instead.
@@ -115,9 +135,7 @@
         # The release's daemon code comes from the Linux AppImage; the
         # JavaScript is the same in every platform's build.
         // lib.optionalAttrs (pkgs.stdenv.hostPlatform.system == "x86_64-linux") {
-          daemon-patches =
-            npmCheck "daemon-patches" [ ]
-              "node scripts/test-daemon-patches.mjs ${paseoApp}/resources/app.asar";
+          daemon-patches = nodeCheck "daemon-patches" "node scripts/test-daemon-patches.mjs ${paseoApp}/resources/app.asar";
         }
       );
 

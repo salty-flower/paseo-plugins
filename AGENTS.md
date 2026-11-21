@@ -15,6 +15,7 @@ Read the [plugin reference](https://paseo.sh/docs/plugins/reference.md) before c
 
 ## Rules
 
+- Use pnpm; `pnpm-lock.yaml` is the only lockfile, and `nix flake check` installs from it.
 - A plugin needs no build step: every file the daemon loads is committed.
   Paseo supplies the SDK, React, React Native, TanStack Query and Zod at runtime; anything else would need a lockfile and a manifest `build`.
 - Never edit genui's files in `plugins/pad/`, because the next re-vendor would drop the edit and `nix flake check` compares them byte for byte with upstream.
@@ -31,15 +32,16 @@ Read the [plugin reference](https://paseo.sh/docs/plugins/reference.md) before c
 `@getpaseo/plugin` in `package.json` and `paseo.version` in `flake.nix` move together; evaluation fails while they differ.
 
 1. Set both, and the AppImage `url` and `hash` in `flake.nix`.
-2. `npm install --package-lock-only --ignore-scripts`.
-3. `nix flake check`; take the new `npmDepsHash` from the hash mismatch.
+2. `pnpm install --lockfile-only --ignore-scripts`.
+   pnpm resolves no version published less than a day ago (`minimumReleaseAge`), so a release from today waits until tomorrow.
+3. `nix flake check`; take the new `pnpmDeps` hash in `flake.nix` from the hash mismatch.
 4. A daemon patch whose anchor moved fails here: read the new upstream code before changing the anchor.
 
 ## Verify
 
 ```sh
-npm run typecheck
-npm run check
+pnpm run typecheck
+pnpm run check
 nix flake check
 ```
 

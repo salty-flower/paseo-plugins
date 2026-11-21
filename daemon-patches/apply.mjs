@@ -10,7 +10,7 @@
 //   - a directory whose node_modules/@getpaseo/server holds plain files, such
 //     as a global npm install of @getpaseo/cli; the files are patched in place.
 // [patch ...] names subdirectories of daemon-patches/; all of them by default.
-// Run `npm ci` in the repository first: ASAR targets need @electron/asar.
+// Run `pnpm install` in the repository first: ASAR targets need @electron/asar.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";

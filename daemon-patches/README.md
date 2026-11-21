@@ -16,7 +16,7 @@ A function throws when its anchor no longer matches, so a Paseo release that mov
 From a checkout of this repository, with the daemon stopped:
 
 ```sh
-npm ci --ignore-scripts
+pnpm install --frozen-lockfile --ignore-scripts
 node daemon-patches/apply.mjs <target>
 ```
 

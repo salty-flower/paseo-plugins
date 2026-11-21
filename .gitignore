@@ -1,3 +1,5 @@
 node_modules/
 result
 result-*
+# pnpm-lock.yaml is the lockfile; a stray `npm install` writes this one.
+package-lock.json

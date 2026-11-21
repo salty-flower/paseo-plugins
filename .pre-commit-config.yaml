@@ -1,5 +1,5 @@
 # Run with prek (`prek install` once, inside `nix develop`). The biome and
-# typecheck hooks use the repository's node_modules, so run `npm ci` first.
+# typecheck hooks use the repository's node_modules, so run `pnpm install` first.
 repos:
   - repo: "https://github.com/pre-commit/pre-commit-hooks"
     rev: "v6.0.0"

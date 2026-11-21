@@ -37,10 +37,10 @@ An unpatched daemon answers "Background work is no longer available to stop".
 ## Development
 
 ```sh
-nix develop          # node, prek, nixfmt, markdownlint, gitleaks
-npm ci --ignore-scripts
+nix develop          # node, pnpm, prek, nixfmt, markdownlint, gitleaks
+pnpm install --frozen-lockfile --ignore-scripts
 prek install         # biome, typecheck and lint on every commit
-npm run typecheck
+pnpm run typecheck
 nix flake check      # typecheck, the pad's genui copy, the daemon patches
 ```
 
