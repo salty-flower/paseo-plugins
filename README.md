@@ -48,4 +48,8 @@ Conventions for contributors and coding agents are in [AGENTS.md](AGENTS.md).
 
 ## License
 
-MIT, except the pad's copy of Generative UI, which stays under Apache 2.0; see [LICENSE](LICENSE).
+MIT; see [LICENSE](LICENSE).
+
+The exception is the pad's copy of [Generative UI](https://github.com/anh-chu/paseo-plugin-genui):
+the files [plugins/pad/vendor.json](plugins/pad/vendor.json) lists are copied from it unchanged
+and stay under the Apache License 2.0, in [plugins/pad/LICENSE.genui](plugins/pad/LICENSE.genui).
