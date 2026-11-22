@@ -6,12 +6,26 @@ export const SECTION_NAME_MAX = 60;
 /** Longest spec per section; the daemon caps one RPC value far above this. */
 export const SECTION_SPEC_MAX = 24_000;
 
+export const padBindingSchema = z.object({
+  workspaceId: z.string().trim().min(1).max(256).optional(),
+  ref: z.string().min(1).max(256).optional(),
+  label: z.string().trim().min(1).max(256).optional(),
+});
+export type PadBinding = z.infer<typeof padBindingSchema>;
+
 export const padSectionSchema = z.object({
+  id: z.string().optional(),
   name: z.string(),
   ui: z.string(),
   updatedAt: z.string(),
+  binding: padBindingSchema.optional(),
+  userOverride: z.boolean().optional(),
 });
 export type PadSection = z.infer<typeof padSectionSchema>;
+
+export function sectionId(section: PadSection): string {
+  return section.id ?? `name:${section.name}`;
+}
 
 export const padSchema = z.object({
   agentId: z.string(),
@@ -49,6 +63,45 @@ export const padClearRpc = defineRpc({
   input: z.object({ agentId: z.string().min(1) }),
   output: z.object({ cleared: z.boolean() }),
 });
+
+export const padBindRpc = defineRpc({
+  name: "pad.bind",
+  input: z.object({ agentId: z.string().min(1), sectionId: z.string().min(1), binding: padBindingSchema }),
+  output: z.object({ section: padSectionSchema }),
+});
+
+const observation = z.object({
+  agentId: z.string().min(1),
+  workspaceId: z.string().nullable(),
+  sectionId: z.string().min(1),
+  at: z.iso.datetime(),
+  timeZone: z.string().min(1).max(128),
+});
+const viewed = observation.extend({
+  type: z.literal("section.viewed"),
+  viewing: z.boolean(),
+  dwellMs: z.number().int().nonnegative().optional(),
+});
+const pressed = observation.extend({
+  type: z.literal("button.pressed"),
+  buttonLabel: z.string().min(1).max(1024),
+});
+const bound = observation.extend({
+  type: z.literal("section.bound"),
+  binding: padBindingSchema,
+  userOverride: z.boolean(),
+  snapshot: z.literal(true).optional(),
+});
+const removed = observation.extend({ type: z.literal("section.removed") });
+
+export const padInteractionRpc = defineRpc({
+  name: "pad.interaction",
+  input: z.discriminatedUnion("type", [viewed, pressed]),
+  output: z.object({}),
+});
+const eventDetails = z.discriminatedUnion("type", [bound, removed, viewed, pressed]);
+export type PadEventDetails = z.infer<typeof eventDetails>;
+export const padEventSchema = eventDetails.and(z.object({ v: z.literal(1), id: z.uuid() }));
 
 /** What a pad button sends, so the agent knows the click came from its pad. */
 export function padReply(section: string, text: string): string {

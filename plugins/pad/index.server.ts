@@ -1,6 +1,7 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { loadAgentAudio, loadAgentFile, loadAgentImage, sketchFontDataUrl } from "./server/data-source";
-import { clearPad, listPads } from "./server/pad-store";
+import { publishPadEvent, startPadEventStream } from "./server/pad-events";
+import { clearPad, listPads, overrideBinding } from "./server/pad-store";
 import { padTool } from "./server/pad-tool";
 import {
   createProjectReader,
@@ -16,7 +17,7 @@ import { createWebLookups } from "./server/web/lookups";
 // Everything below ../shared/rpc is genui's, copied in at build time from the
 // same pin, so pad sections render and load files exactly as chat blocks do.
 import { checkSpec } from "./shared/fallback";
-import { padClearRpc, padListRpc, padsInWorkspaceRpc } from "./shared/pad";
+import { padBindRpc, padClearRpc, padInteractionRpc, padListRpc, padsInWorkspaceRpc } from "./shared/pad";
 import {
   checkUiRpc,
   loadAudioRpc,
@@ -37,6 +38,7 @@ import {
 } from "./shared/rpc";
 
 export default function contribute(server: PluginServerContext) {
+  const stopEvents = startPadEventStream(listPads);
   // genui's default; its settings screen belongs to genui, not to the pad.
   const web = createWebLookups(
     async () => true,
@@ -73,6 +75,11 @@ export default function contribute(server: PluginServerContext) {
     })),
   }));
   server.handle(padClearRpc, async ({ agentId }) => ({ cleared: await clearPad(agentId) }));
+  server.handle(padBindRpc, async ({ agentId, sectionId, binding }) => ({ section: await overrideBinding(agentId, sectionId, binding) }));
+  server.handle(padInteractionRpc, (interaction) => {
+    publishPadEvent(interaction);
+    return {};
+  });
 
   // genui's renderer calls these through this plugin's own RPC namespace.
   server.handle(loadDataRpc, ({ agentId, path, raw }, { paseo }) => loadAgentFile(paseo, agentId, path, { raw }));
@@ -92,5 +99,5 @@ export default function contribute(server: PluginServerContext) {
   server.handle(projectEnvironmentsRpc, ({ agentId }, { paseo }) => readProjectEnvironments(paseo, agentId, false));
   server.handle(projectEnvironmentRpc, ({ agentId, environmentId }, { paseo }) => readProjectEnvironment(paseo, agentId, environmentId));
 
-  return () => {};
+  return stopEvents;
 }

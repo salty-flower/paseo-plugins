@@ -2,7 +2,7 @@ import { defineAgentTool } from "@getpaseo/plugin/server";
 import { z } from "zod";
 // genui's own modules, copied into this plugin at build time from the same pin.
 import { specProblems } from "../shared/fallback";
-import { SECTION_NAME_MAX, SECTION_SPEC_MAX } from "../shared/pad";
+import { padBindingSchema, SECTION_NAME_MAX, SECTION_SPEC_MAX } from "../shared/pad";
 import { loadAgentFile } from "./data-source";
 import { putSection, readPad } from "./pad-store";
 
@@ -23,19 +23,23 @@ export const padTool = defineAgentTool({
     "Your pad: a board beside this chat that the user reads instead of scrolling your replies. It persists across turns and restarts.",
     "Each call replaces one named section with a genui ```ui spec (no fence; the `genui` skill has the components). Send only the section that changed; new sections go last.",
     '`ui: ""` deletes the section. Omit `ui` to read the section\'s current spec back.',
+    "Optional binding: { workspaceId?, ref?, label? }. Use ref for an external reference. Omission keeps the binding. User overrides take precedence.",
     "Buttons in the pad send you their text prefixed `[pad: <section>]`.",
     "Use it while you coordinate other agents: one section per workstream, plus one for what waits on the user. Once a section says it, keep your chat reply to a line.",
   ].join(" "),
   input: z.object({
     section: z.string().trim().min(1).max(SECTION_NAME_MAX).describe('Section heading, e.g. a workspace name or "Waiting on you"'),
     ui: z.string().max(SECTION_SPEC_MAX).optional().describe("The ```ui spec for this section, without the fence"),
+    binding: padBindingSchema.optional(),
   }),
-  async execute({ section, ui }, { agent, paseo }) {
+  async execute({ section, ui, binding }, { agent, paseo }) {
     if (ui === undefined) {
       const pad = await readPad(agent.id);
       const found = pad?.sections.find((entry) => entry.name === section);
       const names = pad?.sections.map((entry) => entry.name) ?? [];
-      return found ? { text: `${found.ui}\n\n${summary(names)}` } : { isError: true, text: `No section "${section}". ${summary(names)}` };
+      if (!found) return { isError: true, text: `No section "${section}". ${summary(names)}` };
+      const metadata = found.binding ? `\nBinding${found.userOverride ? " (user override)" : ""}: ${JSON.stringify(found.binding)}` : "";
+      return { text: `${found.ui}\n\n${summary(names)}${metadata}` };
     }
     const spec = stripFence(ui);
     if (spec !== "") {
@@ -48,7 +52,7 @@ export const padTool = defineAgentTool({
       }
     }
     const existed = spec !== "" || ((await readPad(agent.id))?.sections.some((entry) => entry.name === section) ?? false);
-    const pad = await putSection(agent.id, agent.workspaceId, section, spec === "" ? null : spec);
+    const pad = await putSection(agent.id, agent.workspaceId, section, spec === "" ? null : spec, binding);
     const names = summary(pad?.sections.map((entry) => entry.name) ?? []);
     if (!existed) return { text: `No section "${section}" to delete. ${names}` };
     return { text: `${spec === "" ? "Deleted" : "Saved"} "${section}". ${names}` };

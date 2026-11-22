@@ -1,8 +1,10 @@
 import type { PluginClientContext } from "@getpaseo/plugin/client";
+import { registerPadButtons } from "./client/pad-buttons";
 import { PadPanel, PadPopover } from "./client/pad-panel";
 import { registerPadPills } from "./client/pad-pills";
 
 export default function contribute(client: PluginClientContext) {
+  const removeButtons = registerPadButtons();
   const playAudio = async (dataUrl: string) => {
     const comma = dataUrl.indexOf(",");
     if (comma === -1) return;
@@ -51,5 +53,6 @@ export default function contribute(client: PluginClientContext) {
   ));
   return () => {
     removePills();
+    removeButtons();
   };
 }

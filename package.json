@@ -11,6 +11,7 @@
   "scripts": {
     "typecheck": "node scripts/typecheck.mjs",
     "check": "biome check --error-on-warnings",
+    "test:pad": "node --test scripts/test-pad.mjs",
     "test:daemon-patches": "node scripts/test-daemon-patches.mjs"
   },
   "devDependencies": {

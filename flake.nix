@@ -123,6 +123,7 @@
         in
         {
           typecheck = nodeCheck "typecheck" "node scripts/typecheck.mjs";
+          pad-tests = nodeCheck "pad-tests" "node --test scripts/test-pad.mjs";
 
           # The pad's copy of genui is genui's own files, unedited, at the
           # commit vendor.json names: pad code goes in pad-* files instead.
