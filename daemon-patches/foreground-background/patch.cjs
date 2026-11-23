@@ -22,9 +22,7 @@ function replaceOnce(source, before, after, what) {
 function patchManager(original) {
   return replaceOnce(
     original,
-    "        const { session } = this.requirePublicAgent(agentId);\n" +
-      "        if (!session?.stopBackgroundWork)\n" +
-      '            throw new Error("Background work cannot be stopped");\n',
+    "        const { session } = this.requirePublicAgent(agentId);\n" + "        if (!session?.stopBackgroundWork)\n" + '            throw new Error("Background work cannot be stopped");\n',
     "        const { session } = this.requirePublicAgent(agentId);\n" +
       `        if (itemId === ${JSON.stringify(foregroundItem)}) {\n` +
       "            if (!session?.backgroundForegroundWork)\n" +
