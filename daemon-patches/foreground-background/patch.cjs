@@ -17,20 +17,22 @@ function replaceOnce(source, before, after, what) {
   return source.replace(before, after);
 }
 
+// The reserved item has no inventory entry or stop token, so it branches off
+// before the token check.
 function patchManager(original) {
   return replaceOnce(
     original,
-    "        const agent = this.requirePublicAgent(agentId);\n" +
-      "        if (!agent.session || !agent.session.stopBackgroundWork)\n" +
+    "        const { session } = this.requirePublicAgent(agentId);\n" +
+      "        if (!session?.stopBackgroundWork)\n" +
       '            throw new Error("Background work cannot be stopped");\n',
-    "        const agent = this.requirePublicAgent(agentId);\n" +
+    "        const { session } = this.requirePublicAgent(agentId);\n" +
       `        if (itemId === ${JSON.stringify(foregroundItem)}) {\n` +
-      "            if (!agent.session?.backgroundForegroundWork)\n" +
+      "            if (!session?.backgroundForegroundWork)\n" +
       '                throw new Error("This agent cannot move running work to the background");\n' +
-      "            await agent.session.backgroundForegroundWork();\n" +
+      "            await session.backgroundForegroundWork();\n" +
       "            return;\n" +
       "        }\n" +
-      "        if (!agent.session || !agent.session.stopBackgroundWork)\n" +
+      "        if (!session?.stopBackgroundWork)\n" +
       '            throw new Error("Background work cannot be stopped");\n',
     "foreground work manager",
   );

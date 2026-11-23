@@ -5,7 +5,7 @@ Four plugins for [Paseo](https://paseo.sh).
 | Plugin | What it does | Needs |
 | --- | --- | --- |
 | [pad](plugins/pad/OVERVIEW.md) | A board each top-level agent keeps beside its chat, drawn with Generative UI, so you read one place instead of its replies | Paseo 0.15 |
-| [background-shell](plugins/background-shell/OVERVIEW.md) | Ctrl+B for Paseo: the shell commands a Claude or OpenCode turn waits on move to the background and keep running | Paseo 0.16 and a [patched daemon](#background-shell-needs-a-patched-daemon) |
+| [background-shell](plugins/background-shell/OVERVIEW.md) | Ctrl+B for Paseo: the shell commands a Claude or OpenCode turn waits on move to the background and keep running | Paseo 0.17 and a [patched daemon](#background-shell-needs-a-patched-daemon) |
 | [later](plugins/later/OVERVIEW.md) | `/later 10m <prompt>` or `/later 14:30 <prompt>` sends a prompt to the agent at a set time | Paseo 0.16 |
 | [gruvbox](plugins/gruvbox/OVERVIEW.md) | Gruvbox Light, Gruvbox Dark, and Gruvbox System, which follows the device's appearance | Paseo 0.10 |
 

@@ -29,18 +29,22 @@ const wrapped = wrapSessionProvider("claude-custom", inner);
 assert.equal(typeof wrapped.backgroundForegroundWork, "function", "config-defined providers must keep backgroundForegroundWork");
 assert.equal(wrapped.backgroundForegroundWork(), inner, "the wrapper must call the inner session");
 
-// agent-manager routes the reserved item to the provider, before the inventory check.
+// agent-manager routes the reserved item to the provider, before the stop-token check.
 const calls = [];
 const managerThis = (session) => ({
   requirePublicAgent: () => ({ session }),
   sessionEventTails: new Map(),
-  backgroundWork: { list: () => [] },
+  backgroundWork: {
+    authorizeProviderStop: () => {
+      throw new Error("Background work is no longer available to stop");
+    },
+  },
 });
 const stop = (session, itemId) => AgentManager.prototype.stopAgentBackgroundWork.call(managerThis(session), { agentId: "a", itemId, stopToken: "x" });
 await stop({ stopBackgroundWork: () => calls.push("stop"), backgroundForegroundWork: async () => calls.push("foreground") }, "paseo:foreground");
 assert.deepEqual(calls, ["foreground"], "the reserved item must reach backgroundForegroundWork, not stopBackgroundWork");
 await assert.rejects(stop({ stopBackgroundWork: () => calls.push("stop") }, "paseo:foreground"), /cannot move running work/);
-await assert.rejects(stop({ stopBackgroundWork: () => calls.push("stop") }, "shell-1"), /no longer available/, "other items keep the inventory check");
+await assert.rejects(stop({ stopBackgroundWork: () => calls.push("stop") }, "shell-1"), /no longer available/, "other items keep the stop-token check");
 assert.deepEqual(calls, ["foreground"]);
 
 // Claude: Ctrl+B semantics, every foreground task of the running query.

@@ -15,8 +15,8 @@ importers:
         specifier: 3.2.4
         version: 3.2.4
       '@getpaseo/plugin':
-        specifier: 0.16.2
-        version: 0.16.2(@getpaseo/client@0.16.2)(@getpaseo/protocol@0.16.2)(react-native@0.81.5(@babel/core@7.29.13(supports-color@8.1.1))(@types/react@19.2.18)(react@19.1.0)(supports-color@8.1.1))(react@19.1.0)(typescript@5.9.3)(zod@4.6.7)
+        specifier: 0.17.3
+        version: 0.17.3(@getpaseo/client@0.17.3)(@getpaseo/protocol@0.17.3)(react-native@0.81.5(@babel/core@7.29.13(supports-color@8.1.1))(@types/react@19.2.18)(react@19.1.0)(supports-color@8.1.1))(react@19.1.0)(typescript@5.9.3)(zod@4.6.7)
       '@tanstack/react-query':
         specifier: ^5.90.11
         version: 5.108.2(@types/react@19.2.18)(react@19.1.0)
@@ -262,14 +262,14 @@ packages:
     engines: {node: '>=10.12.0'}
     hasBin: true
 
-  '@getpaseo/client@0.16.2':
-    resolution: {integrity: sha512-Pr7yOn6/F4iJ1GuUdEgnG1W4T1ChsRoV/u49mCzb1xRrQzanNtSIWu7IGQojZ+r0Jclmw3KKWL7+Y0HFKwMFAQ==}
+  '@getpaseo/client@0.17.3':
+    resolution: {integrity: sha512-6a9LqcG04Ts3sdXZmSy1wymoASpfKStTnzU+UBgtgmro/QB649wT/73EZEcieZHOX+PdgCXzR+T58P+s6A+jBw==}
 
-  '@getpaseo/plugin@0.16.2':
-    resolution: {integrity: sha512-ZMIF4yyhe2kvmOswrsqDGmV33fSQo6f1Y8i99AmOGaHp/G1RM2WSwVFuK9iZJimVm5OHKWA+UdsAux613VgFGA==}
+  '@getpaseo/plugin@0.17.3':
+    resolution: {integrity: sha512-Mqzu6YbGWQKjFYCvRNJ7meLctWDsC5EHeCF67WVsbr7GAwRDyQXC8rgXdVcGsDZEeHDKEpU494q/fB7KcUl+SQ==}
     peerDependencies:
-      '@getpaseo/client': 0.16.2
-      '@getpaseo/protocol': 0.16.2
+      '@getpaseo/client': 0.17.3
+      '@getpaseo/protocol': 0.17.3
       react: '>=19.1.0 <20'
       react-native: '>=0.81.5'
       zod: ^4.4.3
@@ -277,11 +277,11 @@ packages:
       react-native:
         optional: true
 
-  '@getpaseo/protocol@0.16.2':
-    resolution: {integrity: sha512-+ry4JoCfS5rKO3hjph4gFolrqtaDl43bQKwULn5FvWZpSrBp7c412hfB0JmmlD8GUiHZ06x/eYBzMD003aAaYg==}
+  '@getpaseo/protocol@0.17.3':
+    resolution: {integrity: sha512-x4vECBDnlrSDlaq0/zadkP5AZ77zugW/78WLWI1oxLKye6jktTGGiSron3e2hxNuMBQb7twFHgzg9oUOs/lXTg==}
 
-  '@getpaseo/relay@0.16.2':
-    resolution: {integrity: sha512-7CtW77ZmuGKDY1n8JObsWxJ6aGIpVdmTjlul/0tF+gahblxnuK1+LXKvNafJ2006/ME5g0AgB5QkWSRzTExGwg==}
+  '@getpaseo/relay@0.17.3':
+    resolution: {integrity: sha512-C1ZsSTmiBEHlSySmcUiLeeOfTV6IGW3WHzkQ9Zd6X5z0liXvmT3G9q1hm6q3lg8G9yiQhsq+1LwX8Fh7iy+2Hg==}
 
   '@isaacs/ttlcache@1.4.1':
     resolution: {integrity: sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA==}
@@ -1590,21 +1590,21 @@ snapshots:
       glob: 7.2.3
       minimatch: 3.1.5
 
-  '@getpaseo/client@0.16.2':
+  '@getpaseo/client@0.17.3':
     dependencies:
-      '@getpaseo/protocol': 0.16.2
-      '@getpaseo/relay': 0.16.2
+      '@getpaseo/protocol': 0.17.3
+      '@getpaseo/relay': 0.17.3
       ws: 8.23.0
       zod: 4.6.7
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@getpaseo/plugin@0.16.2(@getpaseo/client@0.16.2)(@getpaseo/protocol@0.16.2)(react-native@0.81.5(@babel/core@7.29.13(supports-color@8.1.1))(@types/react@19.2.18)(react@19.1.0)(supports-color@8.1.1))(react@19.1.0)(typescript@5.9.3)(zod@4.6.7)':
+  '@getpaseo/plugin@0.17.3(@getpaseo/client@0.17.3)(@getpaseo/protocol@0.17.3)(react-native@0.81.5(@babel/core@7.29.13(supports-color@8.1.1))(@types/react@19.2.18)(react@19.1.0)(supports-color@8.1.1))(react@19.1.0)(typescript@5.9.3)(zod@4.6.7)':
     dependencies:
       '@agentclientprotocol/sdk': 1.9.0(zod@4.6.7)
-      '@getpaseo/client': 0.16.2
-      '@getpaseo/protocol': 0.16.2
+      '@getpaseo/client': 0.17.3
+      '@getpaseo/protocol': 0.17.3
       i18next: 26.7.2(typescript@5.9.3)
       react: 19.1.0
       use-sync-external-store: 1.7.0(react@19.1.0)
@@ -1614,12 +1614,12 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@getpaseo/protocol@0.16.2':
+  '@getpaseo/protocol@0.17.3':
     dependencies:
       semver: 7.8.6
       zod: 4.6.7
 
-  '@getpaseo/relay@0.16.2':
+  '@getpaseo/relay@0.17.3':
     dependencies:
       '@noble/ciphers': 2.4.0
       '@noble/curves': 2.4.0

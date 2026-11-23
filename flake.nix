@@ -20,10 +20,10 @@
       # The Paseo release the plugin SDK and the daemon patches are checked
       # against. Bump it together with @getpaseo/plugin in package.json.
       paseo = {
-        version = "0.16.2";
+        version = "0.17.3";
         appImage = {
-          url = "https://github.com/getpaseo/paseo/releases/download/v0.16.2/Paseo-x86_64.AppImage";
-          hash = "sha256-u3vcWnRqMhSNcI88fVsb31Ui91xrHnSMqKJNtIDgj1E=";
+          url = "https://github.com/getpaseo/paseo/releases/download/v0.17.3/Paseo-x86_64.AppImage";
+          hash = "sha256-/ExTnr2sVNwP3WMIG4R8hzdpXyyxRzqv7F9df2uEEnY=";
         };
       };
     in
@@ -69,6 +69,7 @@
             fileset = lib.fileset.unions [
               ./package.json
               ./pnpm-lock.yaml
+              ./pnpm-workspace.yaml
               ./tsconfig.base.json
               ./plugins
               ./scripts
@@ -85,10 +86,11 @@
               fileset = lib.fileset.unions [
                 ./package.json
                 ./pnpm-lock.yaml
+                ./pnpm-workspace.yaml
               ];
             };
             fetcherVersion = 5;
-            hash = "sha256-of4IhdN45ltPxct0dbQnnGD9sY+7+ea0brb6G76UPmQ=";
+            hash = "sha256-wah9I3mAcinDgV2QQWI7u400fmYN4iEZHF+wnYJikF8=";
           };
           nodeCheck =
             name: script:

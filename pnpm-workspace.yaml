@@ -1,0 +1,5 @@
+# The SDK tracks the pinned Paseo, which is often bumped the day it is released;
+# pnpm's default minimumReleaseAge would reject that release in the frozen
+# install, so the Paseo packages alone are exempt. Everything else keeps the gate.
+minimumReleaseAgeExclude:
+  - "@getpaseo/*"
