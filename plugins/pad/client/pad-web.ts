@@ -53,3 +53,37 @@ export function observeWebDwell(target: object, report: Parameters<typeof trackD
     hide();
   };
 }
+
+/**
+ * Calls `wake` whenever the surface comes back into view on web: the window
+ * regains focus or visibility, or the element itself appears again, which is
+ * what switching Paseo's panel tabs back to the pad does.
+ */
+export function observeWebWake(target: object, wake: () => void): () => void {
+  if (Platform.OS !== "web") return () => {};
+  let shown = false;
+  const observer =
+    typeof IntersectionObserver === "undefined"
+      ? null
+      : new IntersectionObserver(
+          (entries) => {
+            const next = (entries.at(-1)?.intersectionRatio ?? 0) > 0;
+            if (next && !shown) wake();
+            shown = next;
+          },
+          { threshold: [0] },
+        );
+  observer?.observe(target);
+  const onVisibility = () => {
+    if (document.visibilityState === "visible") wake();
+  };
+  document.addEventListener("visibilitychange", onVisibility);
+  window.addEventListener("focus", wake);
+  window.addEventListener("pageshow", wake);
+  return () => {
+    observer?.disconnect();
+    document.removeEventListener("visibilitychange", onVisibility);
+    window.removeEventListener("focus", wake);
+    window.removeEventListener("pageshow", wake);
+  };
+}

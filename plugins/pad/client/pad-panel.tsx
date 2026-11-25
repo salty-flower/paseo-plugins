@@ -4,11 +4,12 @@ import { useToast } from "@getpaseo/plugin/client/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type RefObject, useCallback, useMemo, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { age, type Pad, type PadSection, padClearRpc, padInteractionRpc, padReply, padsInWorkspaceRpc, sectionId } from "../shared/pad";
+import { age, type Pad, type PadSection, padClearRpc, padInteractionRpc, padRemoveSectionRpc, padReply, padsInWorkspaceRpc, sectionId } from "../shared/pad";
 // genui's renderer, copied in at build time from the same pin.
 import { SpecBlockView } from "./live-ui";
 import { BindingChip } from "./pad-binding";
 import { PadButtonContext } from "./pad-buttons";
+import { usePadClock } from "./pad-clock";
 import { sharePadDwell } from "./pad-dwell";
 import { usePadVisibility } from "./pad-visibility";
 import type { UiRuntime } from "./runtime";
@@ -24,12 +25,16 @@ interface Shared {
   platform: "ios" | "android" | "web";
   playAudio: UiRuntime["playAudio"];
   viewport?: RefObject<View | null>;
+  /** The clock ages read, from usePadClock. */
+  now: number;
 }
 
-function Section({ agentId, section, theme, compact, platform, playAudio, hostId, workspaceId, viewport }: Shared & { agentId: string; section: PadSection }) {
+function Section({ agentId, section, theme, compact, platform, playAudio, hostId, workspaceId, viewport, now }: Shared & { agentId: string; section: PadSection }) {
   const paseo = usePaseo();
   const toast = useToast();
   const interaction = useRpc(padInteractionRpc);
+  const removeSection = useRpc(padRemoveSectionRpc);
+  const queryClient = useQueryClient();
   const id = sectionId(section);
   const sectionKey = useMemo(() => ({ agentId, workspaceId, sectionId: id }), [agentId, workspaceId, id]);
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -84,9 +89,25 @@ function Section({ agentId, section, theme, compact, platform, playAudio, hostId
     <View ref={ref} collapsable={false} style={{ gap: 6 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, flex: 1 }}>
-          {section.name} · {age(section.updatedAt)}
+          {section.name} · {age(section.updatedAt, now)}
         </Text>
         <BindingChip agentId={agentId} section={section} hostId={hostId} workspaceId={workspaceId} theme={theme} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Clear the section ${section.name}`}
+          hitSlop={6}
+          style={{ paddingHorizontal: 4 }}
+          onPress={async () => {
+            try {
+              await removeSection({ agentId, sectionId: id });
+              await queryClient.invalidateQueries({ queryKey: ["pad", workspaceId] });
+            } catch (error) {
+              toast.error(`Not cleared: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }}
+        >
+          <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12 }}>✕</Text>
+        </Pressable>
       </View>
       <PadButtonContext.Provider value={reportButton}>
         <SpecBlockView
@@ -134,7 +155,7 @@ function AgentPad({ pad, onExpand, ...shared }: Shared & { pad: Pad; onExpand?: 
         <Text style={styles.title} numberOfLines={1}>
           {title ?? pad.agentId}
         </Text>
-        <Text style={styles.muted}>updated {age(pad.updatedAt)} ago</Text>
+        <Text style={styles.muted}>updated {age(pad.updatedAt, shared.now)} ago</Text>
         {onExpand ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Open the pad as a full panel" style={styles.action} onPress={onExpand}>
             <Text style={styles.muted}>Expand</Text>
@@ -177,11 +198,15 @@ export function PadPopover(props: PluginButtonContentProps & { playAudio: UiRunt
   const agentId = props.context === "agent" ? props.agentId : null;
   const query = usePadsInWorkspace(workspaceId);
   const pad = query.data?.pads.find((entry) => entry.agentId === agentId) ?? null;
+  const root = useRef<View>(null);
+  const { now, wake } = usePadClock(root, query.refetch);
   return (
-    <View style={{ gap: 16, alignSelf: "stretch", minWidth: 0 }}>
+    <View ref={root} collapsable={false} onPointerEnter={wake} style={{ gap: 16, alignSelf: "stretch", minWidth: 0 }}>
       {query.isError ? <Text style={{ color: theme.colors.statusDanger, fontSize: 12.5 }}>{query.error instanceof Error ? query.error.message : String(query.error)}</Text> : null}
       {query.isSuccess && !pad ? <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12.5 }}>This agent has no pad.</Text> : null}
-      {pad ? <AgentPad pad={pad} hostId={host.id} workspaceId={workspaceId} onExpand={onExpand} theme={theme} compact={layout.compact} platform={layout.platform} playAudio={playAudio} /> : null}
+      {pad ? (
+        <AgentPad pad={pad} hostId={host.id} workspaceId={workspaceId} onExpand={onExpand} now={now} theme={theme} compact={layout.compact} platform={layout.platform} playAudio={playAudio} />
+      ) : null}
     </View>
   );
 }
@@ -194,8 +219,9 @@ export function PadPanel({ theme, layout, host, workspaceId, playAudio }: Plugin
   const muted = { color: theme.colors.foregroundMuted, fontSize: 12.5 };
   const pads = query.data?.pads ?? [];
   const viewport = useRef<View>(null);
+  const { now, wake } = usePadClock(viewport, query.refetch);
   return (
-    <View ref={viewport} collapsable={false} style={{ flex: 1 }}>
+    <View ref={viewport} collapsable={false} onPointerEnter={wake} style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1, backgroundColor: theme.colors.surface0 }} contentContainerStyle={{ padding: layout.compact ? 12 : 20, gap: layout.compact ? 24 : 32 }}>
         {query.isError ? <Text style={{ color: theme.colors.statusDanger, fontSize: 12.5 }}>{query.error instanceof Error ? query.error.message : String(query.error)}</Text> : null}
         {query.isSuccess && pads.length === 0 ? <Text style={muted}>No pad in this workspace yet. Ask its router agent to keep its status on the pad with the `pad` tool.</Text> : null}
@@ -210,6 +236,7 @@ export function PadPanel({ theme, layout, host, workspaceId, playAudio }: Plugin
             platform={layout.platform}
             playAudio={playAudio}
             viewport={viewport}
+            now={now}
           />
         ))}
       </ScrollView>

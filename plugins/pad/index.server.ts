@@ -1,8 +1,8 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { loadAgentAudio, loadAgentFile, loadAgentImage, sketchFontDataUrl } from "./server/data-source";
 import { publishPadEvent, startPadEventStream } from "./server/pad-events";
-import { clearPad, listPads, overrideBinding } from "./server/pad-store";
-import { padTool } from "./server/pad-tool";
+import { clearPad, listPads, overrideBinding, removeSection } from "./server/pad-store";
+import { getsPadTool, padTool } from "./server/pad-tool";
 import {
   createProjectReader,
   readProjectChanges,
@@ -17,7 +17,7 @@ import { createWebLookups } from "./server/web/lookups";
 // Everything below ../shared/rpc is genui's, copied in at build time from the
 // same pin, so pad sections render and load files exactly as chat blocks do.
 import { checkSpec } from "./shared/fallback";
-import { padBindRpc, padClearRpc, padInteractionRpc, padListRpc, padsInWorkspaceRpc } from "./shared/pad";
+import { padBindRpc, padClearRpc, padInteractionRpc, padListRpc, padRemoveSectionRpc, padsInWorkspaceRpc } from "./shared/pad";
 import {
   checkUiRpc,
   loadAudioRpc,
@@ -49,11 +49,8 @@ export default function contribute(server: PluginServerContext) {
     return found.ok ? found.image : null;
   };
 
-  // Only top-level agents get the tool: the router keeps the pad, the agents it
-  // starts report to the router as before. Paseo records an agent's parent in
-  // this label (PARENT_AGENT_ID_LABEL in @getpaseo/protocol).
   server.before("agent.session_open", ({ request }) => {
-    if (request.labels["paseo.parent-agent-id"]) return;
+    if (!getsPadTool(request)) return;
     return { ...request, tools: [...request.tools, padTool] };
   });
 
@@ -75,6 +72,7 @@ export default function contribute(server: PluginServerContext) {
     })),
   }));
   server.handle(padClearRpc, async ({ agentId }) => ({ cleared: await clearPad(agentId) }));
+  server.handle(padRemoveSectionRpc, async ({ agentId, sectionId }) => ({ removed: await removeSection(agentId, sectionId) }));
   server.handle(padBindRpc, async ({ agentId, sectionId, binding }) => ({ section: await overrideBinding(agentId, sectionId, binding) }));
   server.handle(padInteractionRpc, (interaction) => {
     publishPadEvent(interaction);

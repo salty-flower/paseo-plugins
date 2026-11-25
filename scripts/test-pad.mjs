@@ -29,9 +29,9 @@ const hook = registerHooks({
   },
 });
 const { padEventSchema, padInteractionRpc, sectionId } = await import("../plugins/pad/shared/pad.ts");
-const { clearPad, listPads, overrideBinding, putSection, readPad } = await import("../plugins/pad/server/pad-store.ts");
+const { clearPad, listPads, overrideBinding, putSection, readPad, removeSection } = await import("../plugins/pad/server/pad-store.ts");
 const { padRoot, publishPadEvent, startPadEventStream } = await import("../plugins/pad/server/pad-events.ts");
-const { padTool } = await import("../plugins/pad/server/pad-tool.ts");
+const { getsPadTool, padTool } = await import("../plugins/pad/server/pad-tool.ts");
 const { padButtonLabels } = await import("../plugins/pad/client/pad-button-labels.ts");
 const { decisionMessage, readDecision } = await import("../plugins/pad/shared/core/decisions.ts");
 const { fixAllMessage, fixThisMessage, readFindings } = await import("../plugins/pad/shared/core/findings.ts");
@@ -271,4 +271,31 @@ test("overlapping surfaces emit one dwell for the same section", async () => {
   popover(false);
   assert.equal(edges[1].viewing, false);
   assert.ok(edges[1].dwellMs > 0);
+});
+
+test("top-level agents and handoffs get the pad tool, other delegated agents do not", () => {
+  const child = { "paseo.parent-agent-id": "router" };
+  assert.equal(getsPadTool({ labels: {}, title: null }), true);
+  assert.equal(getsPadTool({ labels: child, title: "Fix the flaky test" }), false);
+  assert.equal(getsPadTool({ labels: child, title: null }), false);
+  assert.equal(getsPadTool({ labels: child, title: "[Handoff] Ship the release" }), true);
+});
+
+test("a section is removed by id and never takes a recreated namesake with it", async () => {
+  await putSection("remove", "router", "Keep", 'root = Text("keep")');
+  const { sections } = await putSection("remove", "router", "Done", 'root = Text("done")');
+  const doneId = sectionId(sections[1]);
+  assert.equal(await removeSection("remove", doneId), true);
+  assert.deepEqual(
+    (await readPad("remove")).sections.map((section) => section.name),
+    ["Keep"],
+  );
+  assert.equal(await removeSection("remove", doneId), false);
+
+  await putSection("remove", "router", "Done", 'root = Text("again")');
+  assert.equal(await removeSection("remove", doneId), false);
+  assert.equal((await readPad("remove")).sections.length, 2);
+
+  for (const section of (await readPad("remove")).sections) await removeSection("remove", sectionId(section));
+  assert.equal(await readPad("remove"), null);
 });

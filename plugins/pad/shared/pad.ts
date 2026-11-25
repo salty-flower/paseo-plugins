@@ -64,6 +64,12 @@ export const padClearRpc = defineRpc({
   output: z.object({ cleared: z.boolean() }),
 });
 
+export const padRemoveSectionRpc = defineRpc({
+  name: "pad.remove_section",
+  input: z.object({ agentId: z.string().min(1), sectionId: z.string().min(1) }),
+  output: z.object({ removed: z.boolean() }),
+});
+
 export const padBindRpc = defineRpc({
   name: "pad.bind",
   input: z.object({ agentId: z.string().min(1), sectionId: z.string().min(1), binding: padBindingSchema }),

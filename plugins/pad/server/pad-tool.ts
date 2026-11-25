@@ -16,6 +16,22 @@ function summary(names: readonly string[]): string {
   return names.length === 0 ? "The pad is empty." : `Pad sections, top to bottom: ${names.join(" · ")}.`;
 }
 
+/**
+ * Top-level agents get the tool: the router keeps the pad, and the agents it
+ * starts report to the router as before. Paseo records an agent's parent in
+ * this label (PARENT_AGENT_ID_LABEL in @getpaseo/protocol).
+ *
+ * A handoff is the exception. Paseo's paseo-handoff skill creates the new
+ * agent with `create_agent`, so it carries the parent label too, yet it takes
+ * over the router's job. The skill titles it "[Handoff] <task>". Detaching it
+ * later does not help: tools are fixed when the session opens, and Paseo has
+ * no hook for a label change.
+ */
+export function getsPadTool(request: { labels: Readonly<Record<string, string>>; title: string | null }): boolean {
+  if (!request.labels["paseo.parent-agent-id"]) return true;
+  return request.title?.trimStart().startsWith("[Handoff]") ?? false;
+}
+
 export const padTool = defineAgentTool({
   name: "pad",
   title: "Update pad",

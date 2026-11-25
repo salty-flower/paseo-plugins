@@ -106,6 +106,26 @@ export function overrideBinding(agentId: string, id: string, binding: PadBinding
   });
 }
 
+/**
+ * Deletes one section by id, for the user's per-section clear. By id, not name,
+ * so a press on a stale card cannot delete a section the agent recreated since.
+ */
+export function removeSection(agentId: string, id: string): Promise<boolean> {
+  return serialized(agentId, async () => {
+    const pad = await readPad(agentId);
+    const index = pad?.sections.findIndex((section) => sectionId(section) === id) ?? -1;
+    const previous = pad?.sections[index];
+    if (!pad || !previous) return false;
+    const now = new Date().toISOString();
+    pad.sections.splice(index, 1);
+    pad.updatedAt = now;
+    if (pad.sections.length === 0) await rm(fileOf(agentId), { force: true });
+    else await writePad(pad);
+    recordRemoval(pad, previous, now);
+    return true;
+  });
+}
+
 export function clearPad(agentId: string): Promise<boolean> {
   return serialized(agentId, async () => {
     const pad = await readPad(agentId);
