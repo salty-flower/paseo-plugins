@@ -4,6 +4,7 @@ import { createConnection, createServer, type Socket } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { type Pad, type PadEventDetails, type PadSection, sectionId } from "../shared/pad";
+import type { PadSnapshotRead } from "./pad-store";
 
 export const padRoot = path.join(process.env.PASEO_HOME || path.join(os.homedir(), ".paseo"), "plugin-data", "pad");
 const subscribers = new Map<Socket, string[] | null>();
@@ -54,7 +55,7 @@ export function recordRemoval(pad: Pad, section: PadSection, at: string): void {
   publishPadEvent({ ...sectionObservation(pad, section, at), type: "section.removed" });
 }
 
-export function startPadEventStream(readPads: () => Promise<Pad[]>, root = padRoot): () => Promise<void> {
+export function startPadEventStream(readSnapshot: () => Promise<PadSnapshotRead[]>, root = padRoot): () => Promise<void> {
   if (process.platform === "win32") return async () => {};
   const dir = path.join(root, "events");
   const endpoint = path.join(dir, "v1.sock");
@@ -69,16 +70,25 @@ export function startPadEventStream(readPads: () => Promise<Pad[]>, root = padRo
       subscribers.delete(socket);
       connections.delete(socket);
     });
-    void readPads().then(
-      (pads) => {
+    void readSnapshot().then(
+      (results) => {
         if (socket.destroyed) return;
-        for (const pad of pads) {
+        const pads: Extract<PadEventDetails, { type: "snapshot.complete" }>["pads"] = [];
+        for (const result of results) {
+          if (!("pad" in result)) {
+            pads.push({ agentId: result.agentId, complete: false });
+            continue;
+          }
+          const { pad } = result;
           for (const section of pad.sections) {
             if (section.binding || section.userOverride) {
               write(socket, encode({ ...bindingEvent(pad, section, connectedAt), snapshot: true }));
             }
           }
+          pads.push({ agentId: pad.agentId, workspaceId: pad.workspaceId, complete: true, sectionIds: pad.sections.map(sectionId) });
         }
+        write(socket, encode({ type: "snapshot.complete", at: connectedAt, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, pads }));
+        if (socket.destroyed) return;
         subscribers.set(socket, null);
         for (const line of pending) write(socket, line);
       },

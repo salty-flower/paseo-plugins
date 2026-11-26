@@ -76,12 +76,14 @@ export const padBindRpc = defineRpc({
   output: z.object({ section: padSectionSchema }),
 });
 
-const observation = z.object({
+const eventTime = z.object({
+  at: z.iso.datetime(),
+  timeZone: z.string().min(1).max(128),
+});
+const observation = eventTime.extend({
   agentId: z.string().min(1),
   workspaceId: z.string().nullable(),
   sectionId: z.string().min(1),
-  at: z.iso.datetime(),
-  timeZone: z.string().min(1).max(128),
 });
 const viewed = observation.extend({
   type: z.literal("section.viewed"),
@@ -99,13 +101,22 @@ const bound = observation.extend({
   snapshot: z.literal(true).optional(),
 });
 const removed = observation.extend({ type: z.literal("section.removed") });
+const snapshotComplete = eventTime.extend({
+  type: z.literal("snapshot.complete"),
+  pads: z.array(
+    z.discriminatedUnion("complete", [
+      z.object({ agentId: z.string().min(1), complete: z.literal(true), workspaceId: z.string().nullable(), sectionIds: z.array(z.string().min(1)) }),
+      z.object({ agentId: z.string().min(1), complete: z.literal(false) }),
+    ]),
+  ),
+});
 
 export const padInteractionRpc = defineRpc({
   name: "pad.interaction",
   input: z.discriminatedUnion("type", [viewed, pressed]),
   output: z.object({}),
 });
-const eventDetails = z.discriminatedUnion("type", [bound, removed, viewed, pressed]);
+const eventDetails = z.discriminatedUnion("type", [bound, removed, viewed, pressed, snapshotComplete]);
 export type PadEventDetails = z.infer<typeof eventDetails>;
 export const padEventSchema = eventDetails.and(z.object({ v: z.literal(1), id: z.uuid() }));
 

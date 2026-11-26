@@ -29,7 +29,7 @@ const hook = registerHooks({
   },
 });
 const { padEventSchema, padInteractionRpc, sectionId } = await import("../plugins/pad/shared/pad.ts");
-const { clearPad, listPads, overrideBinding, putSection, readPad, removeSection } = await import("../plugins/pad/server/pad-store.ts");
+const { clearPad, overrideBinding, putSection, readPad, readPadSnapshot, removeSection } = await import("../plugins/pad/server/pad-store.ts");
 const { padRoot, publishPadEvent, startPadEventStream } = await import("../plugins/pad/server/pad-events.ts");
 const { getsPadTool, padTool } = await import("../plugins/pad/server/pad-tool.ts");
 const { padButtonLabels } = await import("../plugins/pad/client/pad-button-labels.ts");
@@ -137,17 +137,46 @@ test("corrections survive concurrent writes, matches, and reads from disk", asyn
   assert.equal(recreated.userOverride, undefined);
 });
 
-test("a subscriber receives a binding snapshot and subsequent interaction payloads", { skip: process.platform === "win32", timeout: 5000 }, async (t) => {
+test("a subscriber receives snapshot bindings, pad coverage, then live events", { skip: process.platform === "win32", timeout: 5000 }, async (t) => {
   const { sections } = await putSection("stream", "router", "Workstream", "content", routerBinding);
   const id = sectionId(sections[0]);
-  const stop = startPadEventStream(async () => (await listPads()).filter((pad) => pad.agentId === "stream"));
+  const unbound = await putSection("stream", "router", "Unbound", "content");
+  const unboundId = sectionId(unbound.sections[1]);
+  const corrupt = path.join(padRoot, "unreadable.json");
+  await writeFile(corrupt, "{broken JSON");
+  t.after(() => rm(corrupt));
+  const deleted = await putSection("deleted", "router", "Gone", "content", routerBinding);
+  assert.equal(await removeSection("deleted", sectionId(deleted.sections[0])), true);
+
+  const scanFinished = Promise.withResolvers();
+  const sendSnapshot = Promise.withResolvers();
+  const stop = startPadEventStream(async () => {
+    const results = await readPadSnapshot();
+    scanFinished.resolve();
+    await sendSnapshot.promise;
+    return results;
+  });
   t.after(stop);
   const endpoint = path.join(padRoot, "events", "v1.sock");
   const socket = await connect(endpoint);
   t.after(() => socket.destroy());
   const lines = createInterface({ input: socket })[Symbol.asyncIterator]();
-  const next = async () => padEventSchema.parse(JSON.parse((await lines.next()).value));
-  const snapshot = await next();
+  const nextWireEvent = async () => JSON.parse((await lines.next()).value);
+  const next = async () => padEventSchema.parse(await nextWireEvent());
+  await scanFinished.promise;
+  await overrideBinding("stream", id, userBinding);
+  sendSnapshot.resolve();
+
+  const bindings = [];
+  let complete = await next();
+  while (complete.type === "section.bound") {
+    assert.equal(complete.snapshot, true);
+    bindings.push(complete);
+    complete = await next();
+  }
+  const streamBindings = bindings.filter((event) => event.agentId === "stream");
+  assert.equal(streamBindings.length, 1);
+  const [snapshot] = streamBindings;
   assert.equal(snapshot.snapshot, true);
   assert.equal(snapshot.v, 1);
   assert.equal(snapshot.type, "section.bound");
@@ -156,19 +185,28 @@ test("a subscriber receives a binding snapshot and subsequent interaction payloa
   assert.equal(snapshot.workspaceId, "router");
   assert.deepEqual(snapshot.binding, routerBinding);
   assert.equal(snapshot.userOverride, false);
-  await overrideBinding("stream", id, userBinding);
+  assert.equal(complete.type, "snapshot.complete");
+  assert.equal(complete.at, snapshot.at);
+  const covered = new Map(complete.pads.map((pad) => [pad.agentId, pad]));
+  assert.deepEqual(covered.get("stream"), { agentId: "stream", workspaceId: "router", complete: true, sectionIds: [id, unboundId] });
+  assert.deepEqual(covered.get("unreadable"), { agentId: "unreadable", complete: false });
+  assert.equal(covered.has("deleted"), false);
+  assert.equal(
+    bindings.some((event) => event.agentId === "unreadable" || event.agentId === "deleted"),
+    false,
+  );
+
   await putSection("stream", "router", "Workstream", "same binding", userBinding);
   await putSection("stream", "router", "Workstream", "conflict", routerBinding);
   const corrected = await next();
   assert.equal(corrected.type, "section.bound");
+  assert.equal(corrected.snapshot, undefined);
   assert.deepEqual(corrected.binding, userBinding);
   assert.equal(corrected.userOverride, true);
 
   const second = await putSection("stream", "router", "Other workstream", "content", routerBinding);
-  const otherId = sectionId(second.sections[1]);
+  const otherId = sectionId(second.sections[2]);
   assert.equal((await next()).sectionId, otherId);
-  const unbound = await putSection("stream", "router", "Unbound", "content");
-  const unboundId = sectionId(unbound.sections[2]);
   await putSection("stream", "new-router", "Workstream", "content after move");
   const moved = [await next(), await next()];
   assert.deepEqual(
@@ -200,19 +238,49 @@ test("a subscriber receives a binding snapshot and subsequent interaction payloa
   assert.deepEqual(clearedBinding.binding, {});
   assert.equal(clearedBinding.userOverride, true);
 
-  await putSection("stream", "new-router", "Other workstream", null);
-  const removed = await next();
-  assert.equal(removed.type, "section.removed");
-  assert.equal(removed.sectionId, otherId);
+  const assertRemoval = async (sectionId) => {
+    const raw = await nextWireEvent();
+    assert.deepEqual(padEventSchema.parse(raw), raw);
+    const { v, id: eventId, at, timeZone, ...removed } = raw;
+    assert.equal(v, 1);
+    assert.match(eventId, /^[0-9a-f-]+$/);
+    assert.ok(at && timeZone);
+    assert.deepEqual(removed, { type: "section.removed", agentId: "stream", workspaceId: "new-router", sectionId });
+  };
+  const toolInput = padTool.input.parse({ section: "Other workstream", ui: "" });
+  const toolResult = await padTool.execute(toolInput, { agent: { id: "stream", workspaceId: "new-router" } });
+  assert.match(toolResult.text, /^Deleted/);
+  await assertRemoval(otherId);
+  assert.equal(await removeSection("stream", id), true);
+  await assertRemoval(id);
+  assert.equal(await removeSection("stream", id), false);
+  const extra = await putSection("stream", "new-router", "Another unbound section", "content");
   await clearPad("stream");
-  const cleared = [await next(), await next()];
-  assert.deepEqual(
-    cleared.map((event) => [event.type, event.sectionId]),
-    [
-      ["section.removed", id],
-      ["section.removed", unboundId],
-    ],
-  );
+  await assertRemoval(unboundId);
+  await assertRemoval(sectionId(extra.sections[1]));
+});
+
+test("empty and failed pad scans produce different socket results", { skip: process.platform === "win32", timeout: 5000 }, async (t) => {
+  const emptyRoot = path.join(root, "empty-scan");
+  const failedRoot = path.join(root, "failed-scan");
+  const stopEmpty = startPadEventStream(async () => [], emptyRoot);
+  const stopFailed = startPadEventStream(async () => {
+    throw new Error("Cannot enumerate pads");
+  }, failedRoot);
+  t.after(stopEmpty);
+  t.after(stopFailed);
+
+  const emptySocket = await connect(path.join(emptyRoot, "events", "v1.sock"));
+  t.after(() => emptySocket.destroy());
+  const emptyLines = createInterface({ input: emptySocket })[Symbol.asyncIterator]();
+  const complete = padEventSchema.parse(JSON.parse((await emptyLines.next()).value));
+  assert.equal(complete.type, "snapshot.complete");
+  assert.deepEqual(complete.pads, []);
+
+  const failedSocket = await connect(path.join(failedRoot, "events", "v1.sock"));
+  t.after(() => failedSocket.destroy());
+  const failedLines = createInterface({ input: failedSocket })[Symbol.asyncIterator]();
+  assert.equal((await failedLines.next()).done, true);
 });
 
 async function connect(endpoint) {

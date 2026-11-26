@@ -52,16 +52,21 @@ Time trackers, analytics, and automation can subscribe to Pad's local event stre
 On Unix, a process running as the daemon user can use Node's `net.createConnection(path)` and `readline.createInterface({ input: socket })`
 to read one JSON event per line from `$PASEO_HOME/plugin-data/pad/events/v1.sock`.
 The Paseo home defaults to `~/.paseo` and the socket directory is private to the daemon user.
-On connect, the stream sends current bindings with `snapshot: true`, then live events.
-Reconnect on EOF or connection failure. Changes and interactions that occur while disconnected have no replay.
+On connect, the stream sends current bindings with `snapshot: true`, followed by one `snapshot.complete` event and then live events.
+Live events observed during the scan are queued until after the completion event.
+Reconnect on EOF or connection failure.
+The snapshot reports current state. Individual changes and interactions during a disconnection have no replay.
 
 Each line has `v: 1`, `id` (event UUID), `at` (UTC RFC 3339), `timeZone` (observer's IANA time zone), and `type`.
-`agentId` and `workspaceId` identify the pad's owner and its workspace. `workspaceId` can be null when unknown.
+Section events also carry `agentId`, `workspaceId`, and `sectionId`.
+`agentId` identifies the pad's owner, and `workspaceId` identifies that owner's workspace or is null when unknown.
 `sectionId` identifies the section within that agent's pad.
 
 - `section.bound` carries the current `binding` and a `userOverride` boolean.
   The binding can be partial or empty. A live event is also sent when the pad's owner workspace changes.
-- `section.removed` marks a section deleted individually or by clearing its pad.
+- `section.removed` has only `v`, `id`, `at`, `timeZone`, `type`, `agentId`, `workspaceId`, and `sectionId`.
+  Pad emits it once per deleted section after a successful tool clear (`ui: ""`), per-section **✕**, or whole-pad **Clear**.
+  It also emits removals for unbound sections.
 - `section.viewed` carries a `viewing` boolean.
   A section in the panel or popover qualifies after 500 ms on screen in the foreground.
   Scrolling it away, closing the surface, or losing app or window focus ends the view.
@@ -73,6 +78,28 @@ Each line has `v: 1`, `id` (event UUID), `at` (UTC RFC 3339), `timeZone` (observ
 ```json
 {"v":1,"id":"a01ab8a3-29d2-4be7-b735-e05f8487fb0d","at":"2026-11-23T12:00:00.000Z","timeZone":"UTC","type":"section.bound","agentId":"agent-1","workspaceId":"workspace-1","sectionId":"d9c65288-caad-45c2-9cfb-b7d9ca3b07e5","binding":{"workspaceId":"workspace-2","ref":"issues:OPS-42","label":"Release checklist"},"userOverride":false}
 ```
+
+`snapshot.complete` carries the event envelope and a `pads` array.
+Each stored pad found during the scan has an entry keyed by its owner `agentId`.
+An entry with `complete: true` includes `workspaceId` and `sectionIds`, the IDs of every live section including unbound ones.
+An entry with `complete: false` carries only `agentId` and `complete`, and signals that the pad could not be read or validated.
+The server closes the connection without a completion event if it cannot enumerate the pad directory.
+An empty `pads` array signals a successful scan that found no pads.
+
+```json
+{"v":1,"id":"32d83f8b-cf3d-4690-871e-374e56162fff","at":"2026-11-23T12:00:00.000Z","timeZone":"UTC","type":"snapshot.complete","pads":[{"agentId":"agent-1","workspaceId":"workspace-1","complete":true,"sectionIds":["d9c65288-caad-45c2-9cfb-b7d9ca3b07e5"]},{"agentId":"agent-2","complete":false}]}
+```
+
+Wait for `snapshot.complete` before inferring removals.
+For this stream's previously known `(agentId, sectionId)` pairs, infer a removal if the owner is absent from `pads` or has `complete: true` and the section ID is absent from `sectionIds`.
+Keep prior sections for any owner with `complete: false`.
+If the connection ends before the completion event, skip reconciliation.
+Process queued live events in stream order after reconciliation.
+
+The v1 socket has no handshake.
+The completion event is additive and existing section and interaction frames use their original shapes.
+Consumers that dispatch by `type` can skip unknown events. Older Kairos adapters log unknown frames and continue reading.
+The completion event occupies one JSON line that grows with the number of pads and sections.
 
 The event schema is in [shared/pad.ts](plugins/pad/shared/pad.ts).
 

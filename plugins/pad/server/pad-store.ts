@@ -4,11 +4,13 @@ import path from "node:path";
 import { type Pad, type PadBinding, type PadSection, padSchema, sectionId } from "../shared/pad";
 import { recordBinding, recordRemoval, padRoot as root } from "./pad-events";
 
+const agentIdPattern = /^[A-Za-z0-9_-]+$/;
+
 // One JSON file per owner agent, so a daemon restart keeps every pad; plugin
 // timeline rows would not survive it.
 function fileOf(agentId: string): string {
   // Agent ids are UUIDs; refuse anything that could leave the directory.
-  if (!/^[A-Za-z0-9_-]+$/.test(agentId)) throw new Error(`invalid agent id: ${agentId}`);
+  if (!agentIdPattern.test(agentId)) throw new Error(`invalid agent id: ${agentId}`);
   return path.join(root, `${agentId}.json`);
 }
 
@@ -137,14 +139,27 @@ export function clearPad(agentId: string): Promise<boolean> {
   });
 }
 
+export type PadSnapshotRead = { pad: Pad } | { agentId: string };
+
+export async function readPadSnapshot(): Promise<PadSnapshotRead[]> {
+  const names = await readdir(root);
+  const agentIds = names.filter((name) => name.endsWith(".json")).map((name) => name.slice(0, -".json".length));
+  return Promise.all(
+    agentIds
+      .filter((agentId) => agentIdPattern.test(agentId))
+      .map(async (agentId) => {
+        // A file may disappear between listing and reading. Keep its owner in the coverage report.
+        const pad = await readPad(agentId).catch(() => null);
+        return pad?.agentId === agentId ? { pad } : { agentId };
+      }),
+  );
+}
+
 export async function listPads(): Promise<Pad[]> {
-  let names: string[];
   try {
-    names = await readdir(root);
+    return (await readPadSnapshot()).flatMap((result) => ("pad" in result ? [result.pad] : []));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
   }
-  const pads = await Promise.all(names.filter((name) => name.endsWith(".json")).map((name) => readPad(name.slice(0, -".json".length)).catch(() => null)));
-  return pads.filter((pad): pad is Pad => pad !== null);
 }

@@ -1,7 +1,7 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { loadAgentAudio, loadAgentFile, loadAgentImage, sketchFontDataUrl } from "./server/data-source";
 import { publishPadEvent, startPadEventStream } from "./server/pad-events";
-import { clearPad, listPads, overrideBinding, removeSection } from "./server/pad-store";
+import { clearPad, listPads, overrideBinding, readPadSnapshot, removeSection } from "./server/pad-store";
 import { getsPadTool, padTool } from "./server/pad-tool";
 import {
   createProjectReader,
@@ -38,7 +38,7 @@ import {
 } from "./shared/rpc";
 
 export default function contribute(server: PluginServerContext) {
-  const stopEvents = startPadEventStream(listPads);
+  const stopEvents = startPadEventStream(readPadSnapshot);
   // genui's default; its settings screen belongs to genui, not to the pad.
   const web = createWebLookups(
     async () => true,
